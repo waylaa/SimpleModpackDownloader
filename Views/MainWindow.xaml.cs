@@ -36,20 +36,32 @@ public partial class MainWindow : IViewFor<MainWindowViewModel>
 
             this.OneWayBind(
                 ViewModel,
-                vm => vm.ManifestFilePath,
-                view => view.ManifestFilePath.Text)
-            .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(
-                ViewModel,
-                vm => vm.HasInternetConnection,
-                view => view.ManifestFilePath.IsEnabled)
+                vm => vm.StartDownloadAndImportation.IsExecuting,
+                view => view.ManifestFileDialog.IsEnabled)
             .DisposeWith(disposableRegistration);
 
             this.OneWayBind(
                 ViewModel,
                 vm => vm.HasInternetConnection,
                 view => view.ManifestFileDialog.IsEnabled)
+            .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.ManifestFilePath,
+                view => view.ManifestFilePath.Text)
+            .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.StartDownloadAndImportation.IsExecuting,
+                view => view.ManifestFilePath.IsEnabled)
+            .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.HasInternetConnection,
+                view => view.ManifestFilePath.IsEnabled)
             .DisposeWith(disposableRegistration);
 
             // Importation folder bindings.
@@ -61,20 +73,32 @@ public partial class MainWindow : IViewFor<MainWindowViewModel>
 
             this.OneWayBind(
                 ViewModel,
-                vm => vm.ImportationFolderPath,
-                view => view.ImportationFolderPath.Text)
-            .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(
-                ViewModel,
-                vm => vm.HasInternetConnection,
-                view => view.ImportationFolderPath.IsEnabled)
+                vm => vm.StartDownloadAndImportation.IsExecuting,
+                view => view.ImportationFolderDialog.IsEnabled)
             .DisposeWith(disposableRegistration);
 
             this.OneWayBind(
                 ViewModel,
                 vm => vm.HasInternetConnection,
                 view => view.ImportationFolderDialog.IsEnabled)
+            .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.ImportationFolderPath,
+                view => view.ImportationFolderPath.Text)
+            .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.StartDownloadAndImportation.IsExecuting,
+                view => view.ImportationFolderPath.IsEnabled)
+            .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.HasInternetConnection,
+                view => view.ImportationFolderPath.IsEnabled)
             .DisposeWith(disposableRegistration);
 
             // File download bindings.

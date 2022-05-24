@@ -38,8 +38,6 @@ public class MainWindowViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> OpenGithubRepository { get; }
 
-    private ForgeClient Forge { get; } = new();
-
     public MainWindowViewModel()
     {
         this.WhenAnyValue(x => x.HasInternetConnection)
@@ -120,12 +118,14 @@ public class MainWindowViewModel : ReactiveObject
 
     public async Task StartDownloadAndImportationAsyncImpl()
     {
+        ForgeClient curseForge = new();
+
         string manifestJson = await File.ReadAllTextAsync(ManifestFilePath);
-        dynamic manifest = JsonNode.Parse(manifestJson);
+        dynamic manifest = JsonNode.Parse(manifestJson)!;
 
         foreach (dynamic file in manifest["files"])
         {
-            string downloadUrl = await Forge.Files.RetrieveDownloadUrl((int)file["projectID"], (int)file["fileID"]);
+            string downloadUrl = await curseForge.Files.RetrieveDownloadUrl((int)file["projectID"], (int)file["fileID"]);
             string fileName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
 
             string destination = fileName.EndsWith(".jar") ? Path.GetFullPath(fileName, Path.GetFullPath("mods", ImportationFolderPath))

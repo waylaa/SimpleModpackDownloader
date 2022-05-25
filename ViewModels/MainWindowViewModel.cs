@@ -118,7 +118,7 @@ public class MainWindowViewModel : ReactiveObject
 
     public async Task StartDownloadAndImportationAsyncImpl()
     {
-        ForgeClient curseForge = new();
+        using ForgeClient curseForge = new();
 
         string manifestJson = await File.ReadAllTextAsync(ManifestFilePath);
         dynamic manifest = JsonNode.Parse(manifestJson)!;

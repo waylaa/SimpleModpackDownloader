@@ -30,6 +30,9 @@ public class MainWindowViewModel : ReactiveObject
     [Reactive]
     public bool HasInternetConnection { get; set; }
 
+    [ObservableAsProperty]
+    public bool IsDownloading { get; set; }
+
     public ReactiveCommand<Unit, string> OpenManifestFileDialog { get; }
 
     public ReactiveCommand<Unit, string> OpenImportationFolderDialog { get; }
@@ -57,6 +60,7 @@ public class MainWindowViewModel : ReactiveObject
 
         StartDownloadAndImportation = ReactiveCommand.CreateFromTask(() => StartDownloadAndImportationAsyncImpl(), canStartDownloadAndImportation);
         StartDownloadAndImportation.ThrownExceptions.Subscribe(ex => Log.Error(ex, ex.Message));
+        StartDownloadAndImportation.IsExecuting.ToPropertyEx(this, x => x.IsDownloading);
 
         OpenGithubRepository = ReactiveCommand.Create(OpenGithubLinkImpl);
         OpenGithubRepository.ThrownExceptions.Subscribe(ex => Log.Error(ex, ex.Message));
@@ -134,13 +138,12 @@ public class MainWindowViewModel : ReactiveObject
             DownloadService downloader = await DownloadFileAsync(downloadUrl, fileName, destination).ConfigureAwait(false);
             downloader.Clear();
         }
+
+        Log.Information("Finished downloading.");
     }
 
     public void OpenGithubLinkImpl()
-    {
-        const string url = "https://github.com/Whatareyoulaughingat/MCModDownloader";
-        Process.Start(new ProcessStartInfo("cmd", $"/c start {url.Replace("&", "^&")}") { CreateNoWindow = true });
-    }
+        => Process.Start(new ProcessStartInfo("cmd", $"/c start {"https://github.com/Whatareyoulaughingat/SimpleModpackDownloader".Replace("&", "^&")}") { CreateNoWindow = true })?.Dispose();
 
     private async Task<DownloadService> DownloadFileAsync(string downloadUrl, string fileName, string destination)
     {
@@ -180,7 +183,7 @@ public class MainWindowViewModel : ReactiveObject
                 return;
             }
 
-            Log.Information($"Sucessfully downloaded {fileName}");
+            Log.Information($"Downloaded {fileName}");
         });
 
         await perFileDownloader.DownloadFileTaskAsync(downloadUrl, destination).ConfigureAwait(false);

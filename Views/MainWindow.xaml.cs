@@ -36,8 +36,9 @@ public partial class MainWindow : IViewFor<MainWindowViewModel>
 
             this.OneWayBind(
                 ViewModel,
-                vm => vm.StartDownloadAndImportation.IsExecuting,
-                view => view.ManifestFileDialog.IsEnabled)
+                vm => vm.IsDownloading,
+                view => view.ManifestFileDialog.IsEnabled,
+                value => !value)
             .DisposeWith(disposableRegistration);
 
             this.OneWayBind(
@@ -50,12 +51,6 @@ public partial class MainWindow : IViewFor<MainWindowViewModel>
                 ViewModel,
                 vm => vm.ManifestFilePath,
                 view => view.ManifestFilePath.Text)
-            .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(
-                ViewModel,
-                vm => vm.StartDownloadAndImportation.IsExecuting,
-                view => view.ManifestFilePath.IsEnabled)
             .DisposeWith(disposableRegistration);
 
             this.OneWayBind(
@@ -73,8 +68,9 @@ public partial class MainWindow : IViewFor<MainWindowViewModel>
 
             this.OneWayBind(
                 ViewModel,
-                vm => vm.StartDownloadAndImportation.IsExecuting,
-                view => view.ImportationFolderDialog.IsEnabled)
+                vm => vm.IsDownloading,
+                view => view.ImportationFolderDialog.IsEnabled,
+                value => !value)
             .DisposeWith(disposableRegistration);
 
             this.OneWayBind(
@@ -87,12 +83,6 @@ public partial class MainWindow : IViewFor<MainWindowViewModel>
                 ViewModel,
                 vm => vm.ImportationFolderPath,
                 view => view.ImportationFolderPath.Text)
-            .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(
-                ViewModel,
-                vm => vm.StartDownloadAndImportation.IsExecuting,
-                view => view.ImportationFolderPath.IsEnabled)
             .DisposeWith(disposableRegistration);
 
             this.OneWayBind(

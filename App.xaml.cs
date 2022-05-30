@@ -1,7 +1,7 @@
 ﻿using darknet.wpf;
-using SimpleModpackDownloader.Views;
 using ReactiveUI;
 using SimpleModpackDownloader.Global;
+using SimpleModpackDownloader.Views;
 using Splat;
 using System;
 using System.IO;
@@ -26,7 +26,7 @@ public partial class App : Application
         Locator.CurrentMutable.InitializeReactiveUI(RegistrationNamespace.Wpf);
         Locator.CurrentMutable.RegisterViewsForViewModels(Assembly.GetCallingAssembly());
 
-        // Set a dark titlebar for this process.
+        // Set a dark titlebar for the main window.
         DarkNet.SetDarkModeAllowedForProcess(true);
 
         MainWindow mainWindow = new();

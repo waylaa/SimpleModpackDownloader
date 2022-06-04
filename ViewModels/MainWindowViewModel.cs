@@ -44,7 +44,7 @@ public class MainWindowViewModel : ReactiveObject
     public MainWindowViewModel()
     {
         this.WhenAnyValue(x => x.HasInternetConnection)
-            .Subscribe(x => HasInternetConnection = NativeMethods.InternetGetConnectedState(out int description, 0));
+            .Subscribe(x => HasInternetConnection = NativeMethods.IsConnectedToInternet());
 
         IObservable<bool> canStartDownloadAndImportation = this.WhenAnyValue(x => x.ManifestFilePath, x => x.ImportationFolderPath,
                                                                              selector: (manifestFilePath, importationFolderPath) => !string.IsNullOrWhiteSpace(manifestFilePath) &&
@@ -91,7 +91,7 @@ public class MainWindowViewModel : ReactiveObject
         }
 
         Log.Information("Selected a manifest.json file sucessfully.");
-        return ManifestFilePath = manifestDialog.FileName;
+        return manifestDialog.FileName;
     }
 
     public string OpenImportationFolderDialogImpl()
@@ -115,21 +115,30 @@ public class MainWindowViewModel : ReactiveObject
         Log.Information("Selected an importation path successfuly.");
 
         // If the specified importation directory does not contain forge or fabric, create a new directory where the files will be stored there.
-        return ImportationFolderPath = !importationFolderDialog.SelectedPath.Contains("Forge") && !importationFolderDialog.SelectedPath.Contains("Fabric")
-                                       ? Directory.CreateDirectory(Path.GetFullPath($"Files ({DateTime.Now:dd'.'MM'.'yyyy})", importationFolderDialog.SelectedPath)).FullName
-                                       : importationFolderDialog.SelectedPath;
+        return !importationFolderDialog.SelectedPath.Contains("Forge") && !importationFolderDialog.SelectedPath.Contains("Fabric")
+               ? Directory.CreateDirectory(Path.GetFullPath($"Files ({DateTime.Now:dd.MM.yyyy})", importationFolderDialog.SelectedPath)).FullName
+               : importationFolderDialog.SelectedPath;
     }
 
     public async Task StartDownloadAndImportationAsyncImpl()
     {
+        // Copy overrides folder.
+        DirectoryInfo importationDirectoryInfo = new(ImportationFolderPath);
+
+        string overridesFolderPath = Path.GetFullPath("overrides", Path.GetDirectoryName(ManifestFilePath));
+        DirectoryInfo overridesDirectoryInfo = new(overridesFolderPath);
+
+        CopyAll(overridesDirectoryInfo, importationDirectoryInfo);
+
+        // Download mods and resource packs.
+        string manifestJson = await File.ReadAllTextAsync(ManifestFilePath);
+        dynamic manifest = JsonNode.Parse(manifestJson);
+
         using ForgeClient curseForge = new();
 
-        string manifestJson = await File.ReadAllTextAsync(ManifestFilePath);
-        dynamic manifest = JsonNode.Parse(manifestJson)!;
-
-        foreach (dynamic file in manifest["files"])
+        await Parallel.ForEachAsync((JsonArray)manifest["files"], async (node, token) =>
         {
-            string downloadUrl = await curseForge.Files.RetrieveDownloadUrl((int)file["projectID"], (int)file["fileID"]);
+            string downloadUrl = await curseForge.Files.RetrieveDownloadUrl((int)node["projectID"], (int)node["fileID"]);
             string fileName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
 
             string destination = fileName.EndsWith(".jar") ? Path.GetFullPath(fileName, Path.GetFullPath("mods", ImportationFolderPath))
@@ -137,7 +146,7 @@ public class MainWindowViewModel : ReactiveObject
 
             DownloadService downloader = await DownloadFileAsync(downloadUrl, fileName, destination).ConfigureAwait(false);
             downloader.Clear();
-        }
+        });
 
         Log.Information("Finished downloading.");
     }
@@ -188,5 +197,23 @@ public class MainWindowViewModel : ReactiveObject
 
         await perFileDownloader.DownloadFileTaskAsync(downloadUrl, destination).ConfigureAwait(false);
         return perFileDownloader;
+    }
+
+    public static void CopyAll(DirectoryInfo source, DirectoryInfo target)
+    {
+        Directory.CreateDirectory(target.FullName);
+
+        // Copy each file into the new directory.
+        foreach (FileInfo fi in source.GetFiles())
+        {
+            fi.CopyTo(Path.Combine(target.FullName, fi.Name), true);
+        }
+
+        // Copy each subdirectory using recursion.
+        foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+        {
+            DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
+            CopyAll(diSourceSubDir, nextTargetSubDir);
+        }
     }
 }

@@ -1,26 +1,28 @@
-﻿using Downloader;
-using ForgedCurse;
+﻿using ForgedCurse;
 using Microsoft.Win32;
 using Ookii.Dialogs.Wpf;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Serilog;
-using SimpleModpackDownloader.Global;
+using SimpleModpackDownloader.Models;
 using SimpleModpackDownloader.Native;
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
+using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Flurl.Http;
 
 namespace SimpleModpackDownloader.ViewModels;
 
 public class MainWindowViewModel : ReactiveObject
 {
+    [Reactive]
+    public string TitlebarName { get; set; } = "SimpleModpackDownloader";
+
     [Reactive]
     public string ManifestFilePath { get; set; }
 
@@ -55,12 +57,20 @@ public class MainWindowViewModel : ReactiveObject
         OpenImportationFolderDialog.Subscribe(newImportationFolderPathValue => ImportationFolderPath = newImportationFolderPathValue);
 
         OpenManifestFileDialog = ReactiveCommand.Create(OpenManifestFileDialogImpl);
-        OpenManifestFileDialog.ThrownExceptions.Subscribe(ex => Log.Error(ex, ex.Message));
-        OpenManifestFileDialog.Subscribe(newManifestFilePathValue => ManifestFilePath = newManifestFilePathValue);
+        OpenManifestFileDialog.Subscribe(value => ManifestFilePath = value);
+        OpenManifestFileDialog.ThrownExceptions.Subscribe(ex =>
+        {
+            TitlebarName = "SimpleModpackDownloader";
+            Log.Error(ex, ex.Message);
+        });
 
         StartDownloadAndImportation = ReactiveCommand.CreateFromTask(() => StartDownloadAndImportationAsyncImpl(), canStartDownloadAndImportation);
-        StartDownloadAndImportation.ThrownExceptions.Subscribe(ex => Log.Error(ex, ex.Message));
         StartDownloadAndImportation.IsExecuting.ToPropertyEx(this, x => x.IsDownloading);
+        StartDownloadAndImportation.ThrownExceptions.Subscribe(ex =>
+        {
+            TitlebarName = "SimpleModpackDownloader";
+            Log.Error(ex, ex.Message);
+        });
 
         OpenGithubRepository = ReactiveCommand.Create(OpenGithubLinkImpl);
         OpenGithubRepository.ThrownExceptions.Subscribe(ex => Log.Error(ex, ex.Message));
@@ -90,7 +100,6 @@ public class MainWindowViewModel : ReactiveObject
             return string.Empty;
         }
 
-        Log.Information("Selected a manifest.json file sucessfully.");
         return manifestDialog.FileName;
     }
 
@@ -112,92 +121,38 @@ public class MainWindowViewModel : ReactiveObject
             return string.Empty;
         }
 
-        Log.Information("Selected an importation path successfuly.");
-
         // If the specified importation directory does not contain forge or fabric, create a new directory where the files will be stored there.
-        return !importationFolderDialog.SelectedPath.Contains("Forge") && !importationFolderDialog.SelectedPath.Contains("Fabric")
-               ? Directory.CreateDirectory(Path.GetFullPath($"Files ({DateTime.Now:dd.MM.yyyy})", importationFolderDialog.SelectedPath)).FullName
+        return !new string[] { "Forge", "forge", "Fabric", "fabric" }.Any(importationFolderDialog.SelectedPath.Contains)
+               ? Directory.CreateDirectory(Path.GetFullPath($"({DateTime.Now:dd.MM.yyyy}) {ManifestFilePath.Split('\\').Reverse().Skip(1).First()} Files", importationFolderDialog.SelectedPath)).FullName
                : importationFolderDialog.SelectedPath;
     }
 
     public async Task StartDownloadAndImportationAsyncImpl()
     {
-        // Copy overrides folder.
-        DirectoryInfo importationDirectoryInfo = new(ImportationFolderPath);
+        // Deserialize the manifest file and start downloading and importing files.
+        await using FileStream deserializationStream = new(ManifestFilePath, FileMode.Open, FileAccess.Read, FileShare.None, default, true);
+        Manifest manifest = await JsonSerializer.DeserializeAsync<Manifest>(deserializationStream);
 
-        string overridesFolderPath = Path.GetFullPath("overrides", Path.GetDirectoryName(ManifestFilePath));
-        DirectoryInfo overridesDirectoryInfo = new(overridesFolderPath);
-
-        CopyAll(overridesDirectoryInfo, importationDirectoryInfo);
-
-        // Download mods and resource packs.
-        string manifestJson = await File.ReadAllTextAsync(ManifestFilePath);
-        dynamic manifest = JsonNode.Parse(manifestJson);
+        TitlebarName = $"SimpleModpackDownloader - Downloading: {manifest.Name}";
 
         using ForgeClient curseForge = new();
-
-        await Parallel.ForEachAsync((JsonArray)manifest["files"], async (node, token) =>
+        await Parallel.ForEachAsync(manifest.Files, async (file, token) =>
         {
-            string downloadUrl = await curseForge.Files.RetrieveDownloadUrl((int)node["projectID"], (int)node["fileID"]);
-            string fileName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
+            string downloadUrl = await curseForge.Files.RetrieveDownloadUrl(file.ProjectID, file.FileID);
 
-            string destination = fileName.EndsWith(".jar") ? Path.GetFullPath(fileName, Path.GetFullPath("mods", ImportationFolderPath))
-                                                           : Path.GetFullPath(fileName, Path.GetFullPath("resourcepacks", ImportationFolderPath));
+            string destination = Path.GetFileName(downloadUrl).EndsWith(".jar") ? Path.GetFullPath("mods", ImportationFolderPath)
+                                                                                : Path.GetFullPath("resourcepacks", ImportationFolderPath);
 
-            DownloadService downloader = await DownloadFileAsync(downloadUrl, fileName, destination).ConfigureAwait(false);
-            downloader.Clear();
+            Log.Information($"Downloaded {Path.GetFileName(await downloadUrl.DownloadFileAsync(destination, cancellationToken: token))}");
         });
 
+        // Copy overrides folder.
+        CopyAll(new(Path.GetFullPath("overrides", Path.GetDirectoryName(ManifestFilePath))), new(ImportationFolderPath));
         Log.Information("Finished downloading.");
     }
 
     public void OpenGithubLinkImpl()
         => Process.Start(new ProcessStartInfo("cmd", $"/c start {"https://github.com/Whatareyoulaughingat/SimpleModpackDownloader".Replace("&", "^&")}") { CreateNoWindow = true })?.Dispose();
-
-    private async Task<DownloadService> DownloadFileAsync(string downloadUrl, string fileName, string destination)
-    {
-        DownloadService perFileDownloader = new(new DownloadConfiguration
-        {
-            TempDirectory = Paths.TemporaryDirectory,
-            MaxTryAgainOnFailover = 2,
-            OnTheFlyDownload = false,
-            ParallelDownload = true,
-            BufferBlockSize = 8192,
-            Timeout = 20000,
-            ChunkCount = 1,
-            RequestConfiguration =
-            {
-                Accept = "*/*",
-                KeepAlive = true,
-                ProtocolVersion = HttpVersion.Version11,
-                UseDefaultCredentials = false,
-                UserAgent = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.1; WOW64; Trident/6.0;)",
-            }
-        });
-
-        Observable.FromEventPattern<AsyncCompletedEventArgs>(
-            handler => perFileDownloader.DownloadFileCompleted += handler,
-            handler => perFileDownloader.DownloadFileCompleted -= handler)
-        .Subscribe(completed =>
-        {
-            if (completed.EventArgs.Cancelled)
-            {
-                Log.Information($"Canceled the download process.");
-                return;
-            }
-
-            if (completed.EventArgs.Error != null)
-            {
-                Log.Error($"An error has occured while downloading a file. Error message: {completed.EventArgs.Error.Message}");
-                return;
-            }
-
-            Log.Information($"Downloaded {fileName}");
-        });
-
-        await perFileDownloader.DownloadFileTaskAsync(downloadUrl, destination).ConfigureAwait(false);
-        return perFileDownloader;
-    }
 
     public static void CopyAll(DirectoryInfo source, DirectoryInfo target)
     {

@@ -3,9 +3,11 @@ using Serilog;
 using SimpleModpackDownloader.Global;
 using SimpleModpackDownloader.ViewModels;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace SimpleModpackDownloader.Views;
@@ -22,11 +24,18 @@ public partial class MainWindow
 
         Log.Logger = new LoggerConfiguration()
            .WriteTo.Async(x => x.File(Path.GetFullPath("log.txt", Paths.LogsDirectory), rollingInterval: RollingInterval.Day))
-           .WriteTo.Async(x => x.RichTextBox(Logger))
+           .WriteTo.Async(x => x.RichTextBox(Logger, formatProvider: CultureInfo.InvariantCulture))
            .CreateLogger();
 
         this.WhenActivated(disposableRegistration =>
         {
+            // Titlebar bindings.
+            this.OneWayBind(
+                ViewModel,
+                vm => vm.TitlebarName,
+                view => view.TitlebarName.Text)
+            .DisposeWith(disposableRegistration);
+
             // Manifest file bindings.
             this.BindCommand(
                 ViewModel,
@@ -118,6 +127,16 @@ public partial class MainWindow
             .DisposeWith(disposableRegistration);
 
             // Logger events.
+            Observable.FromEventPattern<RoutedEventHandler, RoutedEventArgs>(
+                handler => MinimizeWindow.Click += handler,
+                handler => MinimizeWindow.Click -= handler)
+            .Subscribe(x => WindowState = WindowState.Minimized);
+
+            Observable.FromEventPattern<RoutedEventHandler, RoutedEventArgs>(
+                handler => CloseWindow.Click += handler,
+                handler => CloseWindow.Click -= handler)
+            .Subscribe(x => Close());
+
             Observable.FromEventPattern<TextChangedEventHandler, TextChangedEventArgs>(
                 handler => Logger.TextChanged += handler,
                 handler => Logger.TextChanged -= handler)

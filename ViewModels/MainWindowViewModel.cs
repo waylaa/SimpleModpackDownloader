@@ -21,7 +21,7 @@ namespace SimpleModpackDownloader.ViewModels;
 public class MainWindowViewModel : ReactiveObject
 {
     [Reactive]
-    public string TitlebarName { get; set; } = "SimpleModpackDownloader";
+    public string TitlebarName { get; set; } = "Simple Modpack Downloader";
 
     [Reactive]
     public string ManifestFilePath { get; set; }
@@ -60,7 +60,7 @@ public class MainWindowViewModel : ReactiveObject
         OpenManifestFileDialog.Subscribe(value => ManifestFilePath = value);
         OpenManifestFileDialog.ThrownExceptions.Subscribe(ex =>
         {
-            TitlebarName = "SimpleModpackDownloader";
+            TitlebarName = "Simple Modpack Downloader";
             Log.Error(ex, ex.Message);
         });
 
@@ -68,7 +68,7 @@ public class MainWindowViewModel : ReactiveObject
         StartDownloadAndImportation.IsExecuting.ToPropertyEx(this, x => x.IsDownloading);
         StartDownloadAndImportation.ThrownExceptions.Subscribe(ex =>
         {
-            TitlebarName = "SimpleModpackDownloader";
+            TitlebarName = "Simple Modpack Downloader";
             Log.Error(ex, ex.Message);
         });
 
@@ -148,7 +148,9 @@ public class MainWindowViewModel : ReactiveObject
 
         // Copy overrides folder.
         CopyAll(new(Path.GetFullPath("overrides", Path.GetDirectoryName(ManifestFilePath))), new(ImportationFolderPath));
+
         Log.Information("Finished downloading.");
+        TitlebarName = "Simple Modpack Downloader";
     }
 
     public void OpenGithubLinkImpl()

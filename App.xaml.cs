@@ -1,11 +1,7 @@
-﻿using darknet.wpf;
-using ReactiveUI;
+﻿using ReactiveUI;
 using SimpleModpackDownloader.Global;
-using SimpleModpackDownloader.Views;
 using Splat;
-using System;
 using System.IO;
-using System.Reactive.Linq;
 using System.Reflection;
 using System.Windows;
 
@@ -25,16 +21,5 @@ public partial class App : Application
         Locator.CurrentMutable.InitializeSplat();
         Locator.CurrentMutable.InitializeReactiveUI(RegistrationNamespace.Wpf);
         Locator.CurrentMutable.RegisterViewsForViewModels(Assembly.GetCallingAssembly());
-
-        // Set a dark titlebar for the main window.
-        DarkNet.SetDarkModeAllowedForProcess(true);
-
-        MainWindow mainWindow = new();
-        Observable.FromEventPattern<EventHandler, EventArgs>(
-            handler => mainWindow.SourceInitialized += handler,
-            handler => mainWindow.SourceInitialized -= handler)
-        .Subscribe(x => DarkNet.SetDarkModeAllowedForWindow(mainWindow, true));
-
-        mainWindow.Show();
     }
 }

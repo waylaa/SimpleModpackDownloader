@@ -1,14 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 
 namespace SimpleModpackDownloader.Models;
 
-public record File(
+internal sealed record File(
     [property: JsonPropertyName("projectID")] int ProjectID,
     [property: JsonPropertyName("fileID")] int FileID
 );
 
-public record Manifest(
-    [property: JsonPropertyName("files")] IReadOnlyList<File> Files,
+internal sealed record Manifest(
+    [property: JsonPropertyName("files")] ReadOnlyCollection<File> Files,
     [property: JsonPropertyName("name")] string Name
 );

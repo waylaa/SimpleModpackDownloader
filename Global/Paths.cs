@@ -3,11 +3,11 @@ using System.IO;
 
 namespace SimpleModpackDownloader.Global;
 
-public static class Paths
+internal static class Paths
 {
-    public static string BaseDirectory => Path.GetFullPath("SimpleModpackDownloader", Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+    internal static string BaseDirectory => Path.GetFullPath("SimpleModpackDownloader", Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
 
-    public static string TemporaryDirectory => Path.GetFullPath("Temporary Files", BaseDirectory);
+    internal static string TemporaryDirectory => Path.GetFullPath("Temporary Files", BaseDirectory);
 
-    public static string LogsDirectory => Path.GetFullPath("Logs", BaseDirectory);
+    internal static string LogsDirectory => Path.GetFullPath("Logs", BaseDirectory);
 }

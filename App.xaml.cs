@@ -1,8 +1,8 @@
-﻿using ReactiveUI;
+﻿using CommunityToolkit.Mvvm.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using SimpleModpackDownloader.Global;
-using Splat;
+using SimpleModpackDownloader.Services;
 using System.IO;
-using System.Reflection;
 using System.Windows;
 
 namespace SimpleModpackDownloader;
@@ -12,14 +12,20 @@ namespace SimpleModpackDownloader;
 /// </summary>
 public partial class App : Application
 {
-    public App()
+    protected override void OnStartup(StartupEventArgs args)
     {
         Directory.CreateDirectory(Paths.BaseDirectory);
         Directory.CreateDirectory(Paths.LogsDirectory);
         Directory.CreateDirectory(Paths.TemporaryDirectory);
 
-        Locator.CurrentMutable.InitializeSplat();
-        Locator.CurrentMutable.InitializeReactiveUI(RegistrationNamespace.Wpf);
-        Locator.CurrentMutable.RegisterViewsForViewModels(Assembly.GetCallingAssembly());
+        Ioc.Default.ConfigureServices
+        (
+            new ServiceCollection()
+            .AddHttpClient()
+            .AddSingleton<CurseForgeService>()
+            .BuildServiceProvider()
+        );
+
+        base.OnStartup(args);
     }
 }
